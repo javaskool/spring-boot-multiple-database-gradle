@@ -1,0 +1,104 @@
+buildscript {
+	ext {
+		springBootVersion = '2.0.2.RELEASE'
+	}
+	repositories {
+		mavenCentral()
+	}
+	dependencies {
+		classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+	}
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+
+group = 'com.javaskool'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = 1.8
+
+repositories {
+	mavenCentral()
+}
+
+
+dependencies {
+
+	compile('org.springframework.boot:spring-boot-starter-cache')
+	compile('org.springframework.boot:spring-boot-starter-data-jpa')
+	compile('org.springframework.boot:spring-boot-starter-data-rest')
+	compile('org.springframework.boot:spring-boot-starter-integration')
+	compile('org.springframework.boot:spring-boot-starter-jersey')
+	compile('org.springframework.boot:spring-boot-starter-mail')
+	compile('org.springframework.boot:spring-boot-starter-validation')
+	compile('org.springframework.boot:spring-boot-starter-web')
+	compile('org.springframework.session:spring-session-core')
+	compile('org.springframework.boot:spring-boot-autoconfigure')
+	compile ('com.zaxxer:HikariCP:2.7.9')
+	runtime('mysql:mysql-connector-java')
+	compileOnly('org.projectlombok:lombok')	
+	
+	testCompile('org.springframework.boot:spring-boot-starter-test')
+	testCompile('org.springframework.batch:spring-batch-test')
+	
+}
+
+task createFolder{
+ def configDir = new File(project.buildDir.path+"/libs", "config")
+ def keystoreDir = new File(project.buildDir.path+"/libs", "keystore")
+ def logDir = new File(project.buildDir.path+"/libs", "log")
+ def libDir = new File(project.buildDir.path+"/libs", "lib")
+
+ if(!logDir.exists()){
+     logDir.mkdirs()
+ }
+ delete configDir
+ delete libDir
+ delete keystoreDir
+
+ libDir.mkdirs()
+ configDir.mkdirs()
+ keystoreDir.mkdirs()
+}
+
+//copy config
+task copyConfig(type: Copy) {    
+    into project.buildDir.path+"/libs/config"
+   from "config"
+
+}
+//copy keystore
+task copyKeystore(type: Copy) {    
+    into project.buildDir.path+"/libs/keystore"
+   from "keystore"
+}
+
+//copy dependencies
+task copyRuntimeLibs(type: Copy) {
+    into project.buildDir.path+"/libs/lib"
+    from configurations.compile
+
+}
+
+task bundleAll(type: Jar){
+    dependsOn 'createFolder', 'copyRuntimeLibs', 'copyConfig', 'copyKeystore'
+
+     manifest {
+         def manifestClasspath = configurations.compile.collect { "lib/" + it.getName() }.join(' ')
+        attributes 'Implementation-Title': 'spring-boot-multiple-database-gradle',
+                  'Implementation-Version': version,
+                  'Main-Class': 'com.javaskool.starter.SpringBootMultipleDatabaseGradleApplication',
+                  'Class-Path': manifestClasspath
+     }
+     baseName=project.name
+ from { (configurations.compile - configurations.compile).collect { it.isDirectory() ? it : zipTree(it) } }
+ with jar
+    exclude 'META-INF/*.RSA', 'META-INF/*.SF','META-INF/*.DSA'
+}
+
+task zip(type: Zip){
+    dependsOn 'bundleAll'
+     from 'build/libs'
+}
